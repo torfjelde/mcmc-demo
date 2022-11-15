@@ -279,6 +279,18 @@ window.onload = function () {
         ["dt", parseFloat, sim.mcmc, "mcmc"],
       ];
       break;
+    case "CoupledMetropolisHastingsHMC":
+      config = [
+        ["leapfrogSteps", parseInt, sim.mcmc, "mcmc"],
+        ["dt", parseFloat, sim.mcmc, "mcmc"],
+      ];
+      break;
+    case "CoupledMultinomialHMC":
+      config = [
+        ["leapfrogSteps", parseInt, sim.mcmc, "mcmc"],
+        ["dt", parseFloat, sim.mcmc, "mcmc"],
+      ];
+      break;
     default:
       config = [];
     }
