@@ -204,6 +204,7 @@ window.onload = function () {
   var algorithm = MCMC.algorithmNames[0];
   var target = MCMC.targetNames[0];
   var seed = Math.seedrandom();
+  var closeControls = false;
 
   function parseBool(value) {
     return value == "true";
@@ -223,6 +224,11 @@ window.onload = function () {
       seed = Math.seedrandom(queryParams["seed"]);
       console.log("Setting seed to " + seed);
     }
+    if ("closeControls" in queryParams) {
+      // close controls by default if specified
+      closeControls = parseBool(queryParams["closeControls"]);
+    }
+
     let config = [
       ["delay", parseInt, sim, "sim"],
       ["tweeningDelay", parseInt, sim, "sim"],
@@ -249,6 +255,47 @@ window.onload = function () {
   sim.setTarget(target);
 
   sim.mcmc.init(sim.mcmc);
+
+  // set algorithm parameters from query params if present
+  if (window.location.search != "") {
+    var queryParams = getUrlVars();
+
+    var config;
+    switch (algorithm) {
+    case "RandomWalkMH":
+      config = [
+        ["sigma", parseFloat, sim.mcmc, "mcmc"],
+      ]
+      break;
+    case "HamiltonianMC":
+      config = [
+        ["leapfrogSteps", parseInt, sim.mcmc, "mcmc"],
+        ["dt", parseFloat, sim.mcmc, "mcmc"],
+      ];
+      break;
+    case "MultinomialHMC":
+      config = [
+        ["leapfrogSteps", parseInt, sim.mcmc, "mcmc"],
+        ["dt", parseFloat, sim.mcmc, "mcmc"],
+      ];
+      break;
+    default:
+      config = [];
+    }
+
+    for (let i = 0; i < config.length; i++) {
+      let param = config[i][0],
+          parse = config[i][1],
+          obj = config[i][2],
+          objName = config[i][3];
+      if (param in queryParams) {
+        let value = parse(queryParams[param]);
+        console.log("Setting " + objName + "." + param + " to " + value);
+        obj[param] = value;
+      }
+    }
+  }
+
   window.onresize = function () {
     viz.resize();
   };
@@ -305,6 +352,10 @@ window.onload = function () {
   sim.mcmc.attachUI(sim.mcmc, f3);
   f3.add(sim.mcmc, "about").name("About this algorithm");
   f3.open();
+
+  if (closeControls) {
+    gui.close();
+  }
 
   sim.animate();
 };
