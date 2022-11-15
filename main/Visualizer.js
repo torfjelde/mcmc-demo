@@ -297,7 +297,14 @@ class Visualizer {
   dequeue() {
     var event = this.queue.shift();
 
-    var last =
+    const chains = this.simulation.mcmc.hasOwnProperty("chains")
+          ? this.simulation.mcmc.chains
+          : [this.simulation.mcmc.chain];
+    const last_multiple = chains.map((chain) => chain.length > 1 ? chain[chain.length - 2] : chain.last());
+
+    // Related to the marginal chain.
+    const chain = chains[0];
+    const last =
       this.simulation.mcmc.chain.length > 1
         ? this.simulation.mcmc.chain[this.simulation.mcmc.chain.length - 2]
         : this.simulation.mcmc.chain.last();
@@ -330,6 +337,18 @@ class Visualizer {
         });
       }
 
+      if (event.hasOwnProperty("initialMomenta")) {
+        chains.forEach((chain, i) => {
+          let to = last_multiple[i].add(event.initialMomenta[i]);
+          this.drawArrow(this.overlayCanvas, {
+            from: last_multiple[i],
+            to: to,
+            color: this.proposalColor,
+            lw: 1,
+          });
+        });
+      }
+
       if (event.hasOwnProperty("epsilon")) {
         context.fillStyle = "#000";
         context.fillText(
@@ -338,7 +357,7 @@ class Visualizer {
           5 * window.devicePixelRatio + 1.2 * this.fontSizePx
         );
         context.fillText(
-          "m / M_adapt = " + this.simulation.mcmc.chain.length + " / " + this.simulation.mcmc.M_adapt,
+          "m / M_adapt = " + chain.length + " / " + this.simulation.mcmc.M_adapt,
           5 * window.devicePixelRatio,
           5 * window.devicePixelRatio + 2 * 1.2 * this.fontSizePx
         );
@@ -353,13 +372,26 @@ class Visualizer {
       // draw Hamiltonian MC trajectory or queue animation frames if necessary
       // otherwise, draw arrow from chain.last() to proposal
       if (event.hasOwnProperty("trajectory")) {
+        const t0 = event.hasOwnProperty("initial_index") ? event.initial_index : 0;
         if (this.animateProposal) {
-          for (var i = 0; i < event.trajectory.length - 1; ++i)
+          // draw backwards in time in reverse
+          for (var i = 0; i < t0; ++i) {
+            this.queue.splice(i, 0, {
+              type: "trajectory-animation-step",
+              trajectory: event.trajectory,
+              offset: t0 - i - 1,
+            });
+          };
+
+          // draw forwards in time
+          for (var i = t0; i < event.trajectory.length - 1; ++i) {
             this.queue.splice(i, 0, {
               type: "trajectory-animation-step",
               trajectory: event.trajectory,
               offset: i,
             });
+          }
+
           this.queue.push({
             type: "trajectory-animation-end",
             trajectory: event.trajectory,
@@ -387,6 +419,70 @@ class Visualizer {
         }
         drawProposalArrow = false;
       }
+
+      // Handle multiple trajectories.
+      if (event.hasOwnProperty("trajectories")) {
+        const t0 = event.hasOwnProperty("initial_indices") ? event.initial_indices : event.trajectories.map((t) => 0);
+        if (this.animateProposal) {
+          // Iterate through the trajectories and draw the trajectories.
+          for (var trajectory_idx = 0; trajectory_idx < event.trajectories.length; trajectory_idx++) {
+            const trajectory = event.trajectories[trajectory_idx];
+            const t0_ = t0[trajectory_idx];
+            // draw backwards in time in reverse
+            for (var i = 0; i < t0_; ++i) {
+              this.queue.splice(i, 0, {
+                type: "trajectory-animation-step",
+                trajectory: trajectory,
+                offset: t0_ - i - 1,
+              });
+            };
+
+            // draw forwards in time
+            for (var i = t0_; i < trajectory.length - 1; ++i) {
+              this.queue.splice(i, 0, {
+                type: "trajectory-animation-step",
+                trajectory: trajectory,
+                offset: i,
+              });
+            }
+          }
+
+          // Draw the end of the trajectories.
+          for (var trajectory_idx = 0; trajectory_idx < event.trajectories.length; trajectory_idx++) {
+            const trajectory = event.trajectories[trajectory_idx];
+            this.queue.push({
+              type: "trajectory-animation-end",
+              trajectory: trajectory,
+            });
+          }
+        } else {
+          // Draw the trajectories.
+          for (var trajectory_idx = 0; trajectory_idx < event.trajectories.length; trajectory_idx++) {
+            const trajectory = event.trajectories[trajectory_idx];
+            this.drawPath(this.overlayCanvas, {
+              path: trajectory,
+              color: this.trajectoryColor,
+              lw: 1,
+            });
+            for (var i = 0; i < trajectory.length - 1; ++i) {
+              this.drawCircle(this.overlayCanvas, {
+                fill: this.trajectoryColor,
+                center: trajectory[i],
+                radius: 0.02,
+                lw: 0,
+              });
+            }
+            this.drawArrow(this.overlayCanvas, {
+              from: trajectory[trajectory.length - 2],
+              to: trajectory.last(),
+              color: this.trajectoryColor,
+              lw: 1,
+            });
+          }
+        }
+        drawProposalArrow = false;
+      }
+      
       // draw NUTS trajectory
       if (event.hasOwnProperty("nuts_trajectory")) {
         drawProposalArrow = false;
@@ -623,7 +719,7 @@ class Visualizer {
 
     if (event.type == "accept") {
       this.drawArrow(this.overlayCanvas, {
-        from: last,
+        from: event.hasOwnProperty("from") ? event.from : last,
         to: event.proposal,
         color: this.acceptColor,
         lw: 2,
@@ -634,7 +730,7 @@ class Visualizer {
 
     if (event.type == "reject") {
       this.drawArrow(this.overlayCanvas, {
-        from: last,
+        from: event.hasOwnProperty("from") ? event.from : last,
         to: event.proposal,
         color: this.rejectColor,
         lw: 2,
