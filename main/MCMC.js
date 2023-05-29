@@ -94,6 +94,39 @@ MCMC.targets["standard"] = {
   },
 };
 
+// Bivariate normal distribution with different variances
+MCMC.targetNames.push("nonstandard");
+const nonStandardDist = new MultivariateNormal(zeros(2, 1), new Float64Array([0.25, 1.0]).asDiagonal());
+MCMC.targets["nonstandard"] = {
+  xmin: -6,
+  xmax: 6,
+  logDensity: (x) => {
+    return nonStandardDist.logDensity(x);
+  },
+  gradLogDensity: (x) => {
+    return nonStandardDist.gradLogDensity(x);
+  },
+};
+
+// Bivariate normal distribution with cross-correlation
+MCMC.targetNames.push("correlated");
+const SigmaCross = matrix([
+  [1, 0.5],
+  [0.5, 1],
+]);
+const nonStandardCrossDist = new MultivariateNormal(zeros(2, 1), SigmaCross);
+MCMC.targets["correlated"] = {
+  xmin: -6,
+  xmax: 6,
+  logDensity: (x) => {
+    return nonStandardCrossDist.logDensity(x);
+  },
+  gradLogDensity: (x) => {
+    return nonStandardCrossDist.gradLogDensity(x);
+  },
+};
+
+
 // Mixture distribution with three components
 const mixtureComponents = [
   new MultivariateNormal(matrix([[-1.5], [-1.5]]), eye(2).scale(0.8)),
