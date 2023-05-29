@@ -273,6 +273,13 @@ window.onload = function () {
         ["dt", parseFloat, sim.mcmc, "mcmc"],
       ];
       break;
+    case "DualAveragingHMC":
+      config = [
+        ["lambda", parseFloat, sim.mcmc, "mcmc"],
+        ["delta", parseFloat, sim.mcmc, "mcmc"],
+        ["M_adapt", parseInt, sim.mcmc, "mcmc"],
+      ];
+      break;
     case "MultinomialHMC":
       config = [
         ["leapfrogSteps", parseInt, sim.mcmc, "mcmc"],

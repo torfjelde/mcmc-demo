@@ -67,6 +67,13 @@ MCMC.registerAlgorithm("DualAveragingHMC", {
       .onChange((value) => {
         sim.reset();
       });
+    folder
+      .add(self, "M_adapt", 100, 10000)
+      .step(100)
+      .name("M<sub>adapt</sub>")
+      .onChange((value) => {
+        sim.reset();
+      });
     folder.open();
   },
 
